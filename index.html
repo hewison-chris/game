@@ -127,10 +127,18 @@
     .touch-controls {
       display: none;
       width: 100%;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
       padding: 6px 8px 2px;
       gap: 10px;
+      touch-action: none;
+    }
+    .thumb-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
       touch-action: none;
     }
     .dpad {
@@ -138,12 +146,34 @@
       grid-template-columns: repeat(3, 52px);
       grid-template-rows: repeat(3, 52px);
       gap: 5px;
+      padding: 6px;
+      border-radius: 22px;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1.5px solid #1e293b;
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.55);
       touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .dpad-center {
+      border-radius: 50%;
+      background: radial-gradient(circle, #1e293b 0%, #0f172a 75%);
+      border: 1px solid #334155;
+      margin: 8px;
+      pointer-events: none;
+    }
+    .dpad-corner {
       border-radius: 10px;
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid #1e293b;
+      background: rgba(30, 41, 59, 0.25);
+      border: 1px dashed rgba(71, 85, 105, 0.35);
+      margin: 12px;
+      pointer-events: none;
+      transition: background 0.08s ease, border-color 0.08s ease;
+    }
+    .dpad-corner.active {
+      background: rgba(45, 212, 191, 0.45);
+      border-color: #2dd4bf;
+      box-shadow: 0 0 10px rgba(45, 212, 191, 0.5);
     }
     .ctrl-btn {
       font-family: "Courier New", Courier, monospace;
@@ -162,6 +192,9 @@
       user-select: none;
       -webkit-user-select: none;
     }
+    .dpad .ctrl-btn {
+      pointer-events: none;
+    }
     .ctrl-btn.active,
     .ctrl-btn:active {
       background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
@@ -172,9 +205,10 @@
     }
     .meta-controls {
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      flex-direction: row;
+      gap: 12px;
       align-items: center;
+      justify-content: center;
     }
     .meta-btn {
       font-family: "Courier New", Courier, monospace;
@@ -185,7 +219,7 @@
       background: #0f172a;
       border: 1.5px solid #334155;
       border-radius: 999px;
-      padding: 8px 14px;
+      padding: 7px 16px;
       cursor: pointer;
       touch-action: manipulation;
     }
@@ -197,11 +231,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding-right: 4px;
     }
     .jump-btn {
-      width: 82px;
-      height: 82px;
+      width: 86px;
+      height: 86px;
       border-radius: 50%;
       font-size: 15px;
       letter-spacing: 1px;
@@ -290,6 +323,10 @@
         height: 82dvh;
         padding: 4px;
       }
+      body.mobile-mode .thumb-row {
+        flex-direction: column;
+        gap: 10px;
+      }
       body.mobile-mode .dpad {
         grid-template-columns: repeat(3, 44px);
         grid-template-rows: repeat(3, 44px);
@@ -342,7 +379,7 @@
 
       function applyMode(isMobile) {
         document.body.classList.toggle("mobile-mode", isMobile);
-        btn.textContent = isMobile ? "DESKTOP MODE" : "MOBILE MODE";
+        btn.textContent = isMobile ? "SWITCH TO DESKTOP MODE" : "SWITCH TO MOBILE MODE";
       }
 
       var saved = null;
@@ -367,9 +404,119 @@
         e.preventDefault();
       }
     }, false);
-    Elm.Main.init({
+    var app = Elm.Main.init({
       node: document.getElementById("elm-root")
     });
+
+    (function () {
+      var activeTouchId = null;
+      var mouseDown = false;
+      var lastState = { left: false, right: false, up: false, down: false };
+
+      function sendDpad(state) {
+        if (
+          state.left !== lastState.left ||
+          state.right !== lastState.right ||
+          state.up !== lastState.up ||
+          state.down !== lastState.down
+        ) {
+          lastState = state;
+          if (app.ports && app.ports.onDpad) {
+            app.ports.onDpad.send(state);
+          }
+        }
+      }
+
+      function computeDpad(padEl, clientX, clientY) {
+        var rect = padEl.getBoundingClientRect();
+        var cx = rect.left + rect.width / 2;
+        var cy = rect.top + rect.height / 2;
+        var nx = (clientX - cx) / (rect.width / 2);
+        var ny = (clientY - cy) / (rect.height / 2);
+        var dist = Math.hypot(nx, ny);
+        if (dist < 0.16) {
+          return { left: false, right: false, up: false, down: false };
+        }
+        return {
+          left: nx < -0.26,
+          right: nx > 0.26,
+          up: ny < -0.26,
+          down: ny > 0.26
+        };
+      }
+
+      function releaseDpad() {
+        activeTouchId = null;
+        mouseDown = false;
+        sendDpad({ left: false, right: false, up: false, down: false });
+      }
+
+      function getPad() {
+        return document.getElementById("dpad-pad");
+      }
+
+      document.addEventListener("touchstart", function (e) {
+        var pad = getPad();
+        if (!pad) return;
+        for (var i = 0; i < e.changedTouches.length; i++) {
+          var t = e.changedTouches[i];
+          if (pad.contains(t.target)) {
+            e.preventDefault();
+            activeTouchId = t.identifier;
+            sendDpad(computeDpad(pad, t.clientX, t.clientY));
+            return;
+          }
+        }
+      }, { passive: false });
+
+      document.addEventListener("touchmove", function (e) {
+        if (activeTouchId === null) return;
+        var pad = getPad();
+        if (!pad) return;
+        for (var i = 0; i < e.touches.length; i++) {
+          var t = e.touches[i];
+          if (t.identifier === activeTouchId) {
+            e.preventDefault();
+            sendDpad(computeDpad(pad, t.clientX, t.clientY));
+            return;
+          }
+        }
+      }, { passive: false });
+
+      function onTouchEnd(e) {
+        if (activeTouchId === null) return;
+        for (var i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === activeTouchId) {
+            releaseDpad();
+            return;
+          }
+        }
+      }
+
+      document.addEventListener("touchend", onTouchEnd, { passive: true });
+      document.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+      document.addEventListener("mousedown", function (e) {
+        var pad = getPad();
+        if (!pad || !pad.contains(e.target)) return;
+        e.preventDefault();
+        mouseDown = true;
+        sendDpad(computeDpad(pad, e.clientX, e.clientY));
+      });
+
+      window.addEventListener("mousemove", function (e) {
+        if (!mouseDown) return;
+        var pad = getPad();
+        if (!pad) return;
+        sendDpad(computeDpad(pad, e.clientX, e.clientY));
+      });
+
+      window.addEventListener("mouseup", function () {
+        if (mouseDown) releaseDpad();
+      });
+
+      window.addEventListener("blur", releaseDpad);
+    })();
   </script>
 </body>
 </html>

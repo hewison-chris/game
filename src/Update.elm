@@ -113,6 +113,21 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        SetDpad dpad ->
+            let
+                keys =
+                    model.keys
+
+                newKeys =
+                    { keys
+                        | left = dpad.left
+                        , right = dpad.right
+                        , up = dpad.up
+                        , down = dpad.down
+                    }
+            in
+            ( { model | keys = newKeys }, Cmd.none )
+
         ControlDown btn ->
             ( handleControlDown btn model, Cmd.none )
 

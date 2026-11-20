@@ -1,11 +1,14 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Browser.Events
 import Json.Decode as Decode
-import Types exposing (Model, Msg(..))
+import Types exposing (DpadState, Model, Msg(..))
 import Update exposing (init, update)
 import View exposing (view)
+
+
+port onDpad : (DpadState -> msg) -> Sub msg
 
 
 main : Program () Model Msg
@@ -24,6 +27,7 @@ subscriptions _ =
         [ Browser.Events.onAnimationFrameDelta Tick
         , Browser.Events.onKeyDown (Decode.map KeyDown keyDecoder)
         , Browser.Events.onKeyUp (Decode.map KeyUp keyDecoder)
+        , onDpad SetDpad
         ]
 
 

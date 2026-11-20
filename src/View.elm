@@ -65,16 +65,20 @@ viewTouchControls model =
                     "PAUSE"
     in
     Html.div [ HA.class "touch-controls" ]
-        [ Html.div [ HA.class "dpad" ]
-            [ Html.div [ HA.class "dpad-spacer" ] []
-            , touchButton "ctrl-btn dpad-up" model.keys.up BtnUp "▲"
-            , Html.div [ HA.class "dpad-spacer" ] []
-            , touchButton "ctrl-btn dpad-left" model.keys.left BtnLeft "◀"
-            , Html.div [ HA.class "dpad-center" ] []
-            , touchButton "ctrl-btn dpad-right" model.keys.right BtnRight "▶"
-            , Html.div [ HA.class "dpad-spacer" ] []
-            , touchButton "ctrl-btn dpad-down" model.keys.down BtnDown "▼"
-            , Html.div [ HA.class "dpad-spacer" ] []
+        [ Html.div [ HA.class "thumb-row" ]
+            [ Html.div [ HA.id "dpad-pad", HA.class "dpad" ]
+                [ dpadCorner (model.keys.up && model.keys.left)
+                , dpadIndicator "ctrl-btn dpad-up" model.keys.up "▲"
+                , dpadCorner (model.keys.up && model.keys.right)
+                , dpadIndicator "ctrl-btn dpad-left" model.keys.left "◀"
+                , Html.div [ HA.class "dpad-center" ] []
+                , dpadIndicator "ctrl-btn dpad-right" model.keys.right "▶"
+                , dpadCorner (model.keys.down && model.keys.left)
+                , dpadIndicator "ctrl-btn dpad-down" model.keys.down "▼"
+                , dpadCorner (model.keys.down && model.keys.right)
+                ]
+            , Html.div [ HA.class "action-controls" ]
+                [ touchButton "ctrl-btn jump-btn" model.keys.jump BtnJump jumpLabel ]
             ]
         , Html.div [ HA.class "meta-controls" ]
             [ Html.button
@@ -90,9 +94,34 @@ viewTouchControls model =
                 ]
                 [ Html.text "RESTART" ]
             ]
-        , Html.div [ HA.class "action-controls" ]
-            [ touchButton "ctrl-btn jump-btn" model.keys.jump BtnJump jumpLabel ]
         ]
+
+
+dpadIndicator : String -> Bool -> String -> Html Msg
+dpadIndicator baseClass isActive label =
+    let
+        cls =
+            if isActive then
+                baseClass ++ " active"
+
+            else
+                baseClass
+    in
+    Html.div [ HA.class cls ] [ Html.text label ]
+
+
+dpadCorner : Bool -> Html Msg
+dpadCorner isActive =
+    Html.div
+        [ HA.class
+            (if isActive then
+                "dpad-corner active"
+
+             else
+                "dpad-corner"
+            )
+        ]
+        []
 
 
 touchButton : String -> Bool -> ControlButton -> String -> Html Msg

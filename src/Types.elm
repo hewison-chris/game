@@ -171,6 +171,14 @@ type alias Model =
     }
 
 
+type alias DpadState =
+    { left : Bool
+    , right : Bool
+    , up : Bool
+    , down : Bool
+    }
+
+
 type ControlButton
     = BtnLeft
     | BtnRight
@@ -183,6 +191,7 @@ type Msg
     = Tick Float
     | KeyDown String
     | KeyUp String
+    | SetDpad DpadState
     | ControlDown ControlButton
     | ControlUp ControlButton
     | TogglePause
