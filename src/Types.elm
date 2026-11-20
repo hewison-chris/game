@@ -37,6 +37,7 @@ type alias Player =
     , facing : Facing
     , coyoteTimer : Float
     , jumpBufferTimer : Float
+    , ladderCooldown : Float
     , walkFrame : Float
     }
 
@@ -130,6 +131,28 @@ type alias LevelData =
     }
 
 
+type alias Particle =
+    { x : Float
+    , y : Float
+    , vx : Float
+    , vy : Float
+    , life : Float
+    , maxLife : Float
+    , size : Float
+    , color : String
+    }
+
+
+type alias ScorePopup =
+    { x : Float
+    , y : Float
+    , text : String
+    , color : String
+    , life : Float
+    , maxLife : Float
+    }
+
+
 type alias Model =
     { status : GameStatus
     , levelIndex : Int
@@ -143,6 +166,8 @@ type alias Model =
     , keys : Keys
     , deathReason : String
     , animClock : Float
+    , particles : List Particle
+    , popups : List ScorePopup
     }
 
 

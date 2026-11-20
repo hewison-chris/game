@@ -63,6 +63,7 @@ makePlayer sx sy =
     , facing = Right
     , coyoteTimer = 0
     , jumpBufferTimer = 0
+    , ladderCooldown = 0
     , walkFrame = 0
     }
 
@@ -85,6 +86,8 @@ init _ =
       , keys = emptyKeys
       , deathReason = ""
       , animClock = 0
+      , particles = []
+      , popups = []
       }
     , Cmd.none
     )
@@ -127,6 +130,8 @@ startNewGame model =
         , level = lvl
         , keys = emptyKeys
         , deathReason = ""
+        , particles = []
+        , popups = []
     }
 
 
@@ -242,7 +247,11 @@ stepGame : Float -> Model -> Model
 stepGame dt model =
     let
         clocked =
-            { model | animClock = model.animClock + dt }
+            { model
+                | animClock = model.animClock + dt
+                , particles = stepParticles dt model.particles
+                , popups = stepPopups dt model.popups
+            }
     in
     case clocked.status of
         TitleScreen ->
@@ -386,11 +395,39 @@ stepPlaying dt model =
         updatedPlayer =
             stepPlayer dt model.keys newLifts lvl.platforms lvl.ladders model.player
 
-        ( collectedEggs, eggPoints ) =
+        ( collectedEggs, eggPoints, eggHits ) =
             collectEggs updatedPlayer lvl.eggs
 
-        ( collectedSeeds, seedPoints ) =
+        ( collectedSeeds, seedPoints, seedHits ) =
             collectSeeds updatedPlayer lvl.seeds
+
+        jumpParticles =
+            if model.player.onGround && not updatedPlayer.onGround && updatedPlayer.vy < -100 then
+                spawnDust (updatedPlayer.x + updatedPlayer.width / 2) (updatedPlayer.y + updatedPlayer.height)
+
+            else if not model.player.onGround && updatedPlayer.onGround then
+                spawnDust (updatedPlayer.x + updatedPlayer.width / 2) (updatedPlayer.y + updatedPlayer.height)
+
+            else
+                []
+
+        eggParticles =
+            List.concatMap (\pos -> spawnBurst pos.x pos.y "#fde047" "#fef08a" 10) eggHits
+
+        seedParticles =
+            List.concatMap (\pos -> spawnBurst pos.x pos.y "#4ade80" "#bbf7d0" 7) seedHits
+
+        eggPopups =
+            List.map (\pos -> { x = pos.x, y = pos.y - 10, text = "+100", color = "#fde047", life = 0.85, maxLife = 0.85 }) eggHits
+
+        seedPopups =
+            List.map (\pos -> { x = pos.x, y = pos.y - 10, text = "+50", color = "#4ade80", life = 0.75, maxLife = 0.75 }) seedHits
+
+        newParticles =
+            model.particles ++ jumpParticles ++ eggParticles ++ seedParticles
+
+        newPopups =
+            model.popups ++ eggPopups ++ seedPopups
 
         newScore =
             model.score + eggPoints + seedPoints
@@ -410,16 +447,16 @@ stepPlaying dt model =
             List.all .collected collectedEggs
     in
     if newBonus <= 0 then
-        triggerDeath "TIME'S UP!" { model | level = newLevel, score = newScore, highScore = newHigh, bonusTimer = 0 }
+        triggerDeath "TIME'S UP!" { model | level = newLevel, score = newScore, highScore = newHigh, bonusTimer = 0, particles = newParticles, popups = newPopups }
 
     else if hitHazard updatedPlayer lvl.hazards then
-        triggerDeath "FELL INTO THE HAZARD PIT!" { model | level = newLevel, player = updatedPlayer, score = newScore, highScore = newHigh, bonusTimer = newBonus }
+        triggerDeath "FELL INTO THE HAZARD PIT!" { model | level = newLevel, player = updatedPlayer, score = newScore, highScore = newHigh, bonusTimer = newBonus, particles = newParticles, popups = newPopups }
 
     else if updatedPlayer.y > arenaHeight + 10 then
-        triggerDeath "MISSED THE LIFT!" { model | level = newLevel, player = updatedPlayer, score = newScore, highScore = newHigh, bonusTimer = newBonus }
+        triggerDeath "MISSED THE LIFT!" { model | level = newLevel, player = updatedPlayer, score = newScore, highScore = newHigh, bonusTimer = newBonus, particles = newParticles, popups = newPopups }
 
     else if hitEnemy updatedPlayer newEnemies then
-        triggerDeath "CAUGHT BY A HEN!" { model | level = newLevel, player = updatedPlayer, score = newScore, highScore = newHigh, bonusTimer = newBonus }
+        triggerDeath "CAUGHT BY A HEN!" { model | level = newLevel, player = updatedPlayer, score = newScore, highScore = newHigh, bonusTimer = newBonus, particles = newParticles, popups = newPopups }
 
     else if allEggsCollected then
         let
@@ -436,6 +473,8 @@ stepPlaying dt model =
             , score = finalScore
             , highScore = max newHigh finalScore
             , bonusTimer = newBonus
+            , particles = newParticles ++ spawnBurst (updatedPlayer.x + 12) (updatedPlayer.y + 16) "#2dd4bf" "#fde047" 18
+            , popups = newPopups
         }
 
     else
@@ -445,15 +484,25 @@ stepPlaying dt model =
             , score = newScore
             , highScore = newHigh
             , bonusTimer = newBonus
+            , particles = newParticles
+            , popups = newPopups
         }
 
 
 triggerDeath : String -> Model -> Model
 triggerDeath reason model =
+    let
+        px =
+            model.player.x + model.player.width / 2
+
+        py =
+            model.player.y + model.player.height / 2
+    in
     { model
         | status = Dying 1.25
         , lives = model.lives - 1
         , deathReason = reason
+        , particles = model.particles ++ spawnBurst px py "#f43f5e" "#facc15" 16
     }
 
 
@@ -559,8 +608,15 @@ stepPlayer dt keys lifts platforms ladders player =
         jumpBuf =
             max 0 (carriedPlayer.jumpBufferTimer - dt)
 
+        ladCool =
+            max 0 (carriedPlayer.ladderCooldown - dt)
+
         pTimed =
-            { carriedPlayer | coyoteTimer = coyote, jumpBufferTimer = jumpBuf }
+            { carriedPlayer
+                | coyoteTimer = coyote
+                , jumpBufferTimer = jumpBuf
+                , ladderCooldown = ladCool
+            }
 
         -- 3. Check ladder overlap
         pCenterX =
@@ -583,25 +639,46 @@ stepPlayer dt keys lifts platforms ladders player =
                     )
                 |> List.head
 
+        wantsJump =
+            pTimed.jumpBufferTimer > 0 && (pTimed.onGround || pTimed.coyoteTimer > 0 || pTimed.onLadder)
+
+        canGrabLadder =
+            pTimed.ladderCooldown <= 0 && pTimed.vy >= 0 && not keys.jump
+
         wantsLadder =
-            case maybeLadder of
-                Just lad ->
-                    if pTimed.onLadder then
-                        True
+            if wantsJump then
+                False
 
-                    else if keys.up && pBottom > lad.topY + 4 then
-                        True
+            else
+                case maybeLadder of
+                    Just lad ->
+                        if pTimed.onLadder then
+                            True
 
-                    else if keys.down && pBottom <= lad.bottomY - 2 then
-                        True
+                        else if canGrabLadder && keys.up && pBottom > lad.topY + 4 then
+                            True
 
-                    else
+                        else if canGrabLadder && keys.down && pBottom <= lad.bottomY - 2 then
+                            True
+
+                        else
+                            False
+
+                    Nothing ->
                         False
-
-                Nothing ->
-                    False
     in
-    if wantsLadder then
+    if wantsJump then
+        stepFreeMove dt
+            keys
+            lifts
+            platforms
+            { pTimed
+                | onLadder = False
+                , coyoteTimer = max 0.09 pTimed.coyoteTimer
+                , ladderCooldown = 0.28
+            }
+
+    else if wantsLadder then
         case maybeLadder of
             Just lad ->
                 stepOnLadder dt keys lad pTimed
@@ -842,32 +919,124 @@ stepFreeMove dt keys lifts platforms player =
     }
 
 
-collectEggs : Player -> List Egg -> ( List Egg, Int )
+collectEggs : Player -> List Egg -> ( List Egg, Int, List { x : Float, y : Float } )
 collectEggs player eggs =
     List.foldr
-        (\egg ( acc, pts ) ->
+        (\egg ( acc, pts, hits ) ->
             if not egg.collected && overlapsCircle player egg.x egg.y 16 then
-                ( { egg | collected = True } :: acc, pts + 100 )
+                ( { egg | collected = True } :: acc, pts + 100, { x = egg.x, y = egg.y } :: hits )
 
             else
-                ( egg :: acc, pts )
+                ( egg :: acc, pts, hits )
         )
-        ( [], 0 )
+        ( [], 0, [] )
         eggs
 
 
-collectSeeds : Player -> List Seed -> ( List Seed, Int )
+collectSeeds : Player -> List Seed -> ( List Seed, Int, List { x : Float, y : Float } )
 collectSeeds player seeds =
     List.foldr
-        (\seed ( acc, pts ) ->
+        (\seed ( acc, pts, hits ) ->
             if not seed.collected && overlapsCircle player seed.x seed.y 14 then
-                ( { seed | collected = True } :: acc, pts + 50 )
+                ( { seed | collected = True } :: acc, pts + 50, { x = seed.x, y = seed.y } :: hits )
 
             else
-                ( seed :: acc, pts )
+                ( seed :: acc, pts, hits )
         )
-        ( [], 0 )
+        ( [], 0, [] )
         seeds
+
+
+stepParticles : Float -> List Particle -> List Particle
+stepParticles dt particles =
+    particles
+        |> List.filterMap
+            (\p ->
+                let
+                    newLife =
+                        p.life - dt
+                in
+                if newLife <= 0 then
+                    Nothing
+
+                else
+                    Just
+                        { p
+                            | x = p.x + p.vx * dt
+                            , y = p.y + p.vy * dt
+                            , vy = p.vy + 260 * dt
+                            , life = newLife
+                        }
+            )
+
+
+stepPopups : Float -> List ScorePopup -> List ScorePopup
+stepPopups dt popups =
+    popups
+        |> List.filterMap
+            (\pop ->
+                let
+                    newLife =
+                        pop.life - dt
+                in
+                if newLife <= 0 then
+                    Nothing
+
+                else
+                    Just
+                        { pop
+                            | y = pop.y - 38 * dt
+                            , life = newLife
+                        }
+            )
+
+
+spawnDust : Float -> Float -> List Particle
+spawnDust x y =
+    [ { x = x - 6, y = y - 2, vx = -48, vy = -40, life = 0.28, maxLife = 0.28, size = 3.2, color = "#94a3b8" }
+    , { x = x, y = y - 1, vx = 0, vy = -28, life = 0.24, maxLife = 0.24, size = 2.6, color = "#cbd5e1" }
+    , { x = x + 6, y = y - 2, vx = 48, vy = -40, life = 0.28, maxLife = 0.28, size = 3.2, color = "#94a3b8" }
+    ]
+
+
+spawnBurst : Float -> Float -> String -> String -> Int -> List Particle
+spawnBurst x y colA colB count =
+    List.range 0 (count - 1)
+        |> List.map
+            (\i ->
+                let
+                    angle =
+                        (toFloat i / toFloat count) * 2 * pi
+
+                    speed =
+                        if modBy 2 i == 0 then
+                            115
+
+                        else
+                            75
+
+                    col =
+                        if modBy 2 i == 0 then
+                            colA
+
+                        else
+                            colB
+                in
+                { x = x
+                , y = y
+                , vx = cos angle * speed
+                , vy = sin angle * speed - 45
+                , life = 0.55
+                , maxLife = 0.55
+                , size =
+                    if modBy 2 i == 0 then
+                        3.5
+
+                    else
+                        2.5
+                , color = col
+                }
+            )
 
 
 overlapsCircle : Player -> Float -> Float -> Float -> Bool

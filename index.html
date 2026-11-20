@@ -11,7 +11,7 @@
       padding: 0;
     }
     body {
-      background: #07080f;
+      background: radial-gradient(circle at 50% 35%, #111b36 0%, #060914 68%, #03050a 100%);
       color: #f1f5f9;
       font-family: "Courier New", Courier, monospace;
       display: flex;
@@ -21,28 +21,113 @@
       min-height: 100vh;
       overflow: hidden;
       user-select: none;
+      padding: 14px;
+    }
+    .arcade-cabinet {
+      width: 100%;
+      max-width: 980px;
+      background: linear-gradient(160deg, #161f38 0%, #0b1020 55%, #070a14 100%);
+      border: 2px solid #1e293b;
+      border-radius: 16px;
+      padding: 14px 16px 12px;
+      box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.75),
+        0 0 42px rgba(45, 212, 191, 0.16),
+        inset 0 1px 0 rgba(148, 163, 184, 0.18);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .cabinet-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .cabinet-title {
+      color: #2dd4bf;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(45, 212, 191, 0.45);
+    }
+    .cabinet-leds {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .led {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    .led.teal {
+      background: #2dd4bf;
+      box-shadow: 0 0 8px #2dd4bf;
+    }
+    .led.pink {
+      background: #f472b6;
+      box-shadow: 0 0 8px #f472b6;
+    }
+    .led.gold {
+      background: #facc15;
+      box-shadow: 0 0 8px #facc15;
     }
     #elm-root {
       width: 100%;
-      max-width: 960px;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 12px;
     }
     svg {
       width: 100%;
       height: auto;
-      max-height: 92vh;
-      border: 3px solid #2dd4bf;
-      border-radius: 6px;
-      box-shadow: 0 0 32px rgba(45, 212, 191, 0.22);
-      background: #0b0d17;
+      max-height: 84vh;
+      border: 2px solid #2dd4bf;
+      border-radius: 8px;
+      box-shadow:
+        0 0 28px rgba(45, 212, 191, 0.22),
+        inset 0 0 18px rgba(0, 0, 0, 0.65);
+      background: #070b18;
+      display: block;
+    }
+    .cabinet-footer {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #475569;
+    }
+    .cabinet-footer span strong {
+      color: #94a3b8;
     }
   </style>
 </head>
 <body>
-  <div id="elm-root"></div>
+  <div class="arcade-cabinet">
+    <div class="cabinet-header">
+      <div class="cabinet-leds">
+        <span class="led teal"></span>
+        <span class="led pink"></span>
+        <span class="led gold"></span>
+      </div>
+      <div class="cabinet-title">CHUCKIE LIFT // ARCADE EDITION</div>
+      <div>ELM 0.19.3</div>
+    </div>
+    <div id="elm-root"></div>
+    <div class="cabinet-footer">
+      <span><strong>MOVE:</strong> ARROWS / WASD</span>
+      <span><strong>JUMP:</strong> SPACE</span>
+      <span><strong>PAUSE:</strong> P</span>
+      <span><strong>RESTART:</strong> R</span>
+    </div>
+  </div>
   <script src="main.js"></script>
   <script>
     window.addEventListener("keydown", function (e) {
