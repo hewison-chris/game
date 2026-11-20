@@ -99,6 +99,26 @@ update msg model =
         StartGame ->
             ( startNewGame model, Cmd.none )
 
+        RestartGame ->
+            ( startNewGame model, Cmd.none )
+
+        TogglePause ->
+            case model.status of
+                Playing ->
+                    ( { model | status = Paused }, Cmd.none )
+
+                Paused ->
+                    ( { model | status = Playing }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ControlDown btn ->
+            ( handleControlDown btn model, Cmd.none )
+
+        ControlUp btn ->
+            ( handleControlUp btn model, Cmd.none )
+
         KeyDown key ->
             ( handleKeyDown key model, Cmd.none )
 
@@ -111,6 +131,84 @@ update msg model =
                     min 0.033 (dtMs / 1000)
             in
             ( stepGame dt model, Cmd.none )
+
+
+handleControlDown : ControlButton -> Model -> Model
+handleControlDown btn model =
+    case model.status of
+        TitleScreen ->
+            if btn == BtnJump then
+                startNewGame model
+
+            else
+                model
+
+        GameOver ->
+            if btn == BtnJump then
+                startNewGame model
+
+            else
+                model
+
+        _ ->
+            let
+                keys =
+                    model.keys
+
+                newKeys =
+                    case btn of
+                        BtnLeft ->
+                            { keys | left = True }
+
+                        BtnRight ->
+                            { keys | right = True }
+
+                        BtnUp ->
+                            { keys | up = True }
+
+                        BtnDown ->
+                            { keys | down = True }
+
+                        BtnJump ->
+                            { keys | jump = True }
+
+                p =
+                    model.player
+
+                newPlayer =
+                    if btn == BtnJump then
+                        { p | jumpBufferTimer = 0.12 }
+
+                    else
+                        p
+            in
+            { model | keys = newKeys, player = newPlayer }
+
+
+handleControlUp : ControlButton -> Model -> Model
+handleControlUp btn model =
+    let
+        keys =
+            model.keys
+
+        newKeys =
+            case btn of
+                BtnLeft ->
+                    { keys | left = False }
+
+                BtnRight ->
+                    { keys | right = False }
+
+                BtnUp ->
+                    { keys | up = False }
+
+                BtnDown ->
+                    { keys | down = False }
+
+                BtnJump ->
+                    { keys | jump = False }
+    in
+    { model | keys = newKeys }
 
 
 startNewGame : Model -> Model

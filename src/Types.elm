@@ -171,8 +171,20 @@ type alias Model =
     }
 
 
+type ControlButton
+    = BtnLeft
+    | BtnRight
+    | BtnUp
+    | BtnDown
+    | BtnJump
+
+
 type Msg
     = Tick Float
     | KeyDown String
     | KeyUp String
+    | ControlDown ControlButton
+    | ControlUp ControlButton
+    | TogglePause
+    | RestartGame
     | StartGame

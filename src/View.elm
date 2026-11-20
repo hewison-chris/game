@@ -2,6 +2,8 @@ module View exposing (view)
 
 import Html exposing (Html)
 import Html.Attributes as HA
+import Html.Events as HE
+import Json.Decode as Decode
 import Svg exposing (..)
 import Svg.Attributes as SA
 import Svg.Events exposing (onClick)
@@ -11,10 +13,7 @@ import Types exposing (..)
 view : Model -> Html Msg
 view model =
     Html.div
-        [ HA.style "width" "100%"
-        , HA.style "display" "flex"
-        , HA.style "justify-content" "center"
-        ]
+        [ HA.class "game-shell" ]
         [ svg
             [ SA.viewBox "0 0 800 600"
             , SA.width "800"
@@ -39,7 +38,87 @@ view model =
                 , [ viewScanlines ]
                 ]
             )
+        , viewTouchControls model
         ]
+
+
+viewTouchControls : Model -> Html Msg
+viewTouchControls model =
+    let
+        jumpLabel =
+            case model.status of
+                TitleScreen ->
+                    "START"
+
+                GameOver ->
+                    "RETRY"
+
+                _ ->
+                    "JUMP"
+
+        pauseLabel =
+            case model.status of
+                Paused ->
+                    "RESUME"
+
+                _ ->
+                    "PAUSE"
+    in
+    Html.div [ HA.class "touch-controls" ]
+        [ Html.div [ HA.class "dpad" ]
+            [ Html.div [ HA.class "dpad-spacer" ] []
+            , touchButton "ctrl-btn dpad-up" model.keys.up BtnUp "▲"
+            , Html.div [ HA.class "dpad-spacer" ] []
+            , touchButton "ctrl-btn dpad-left" model.keys.left BtnLeft "◀"
+            , Html.div [ HA.class "dpad-center" ] []
+            , touchButton "ctrl-btn dpad-right" model.keys.right BtnRight "▶"
+            , Html.div [ HA.class "dpad-spacer" ] []
+            , touchButton "ctrl-btn dpad-down" model.keys.down BtnDown "▼"
+            , Html.div [ HA.class "dpad-spacer" ] []
+            ]
+        , Html.div [ HA.class "meta-controls" ]
+            [ Html.button
+                [ HA.class "meta-btn"
+                , HA.type_ "button"
+                , HE.onClick TogglePause
+                ]
+                [ Html.text pauseLabel ]
+            , Html.button
+                [ HA.class "meta-btn"
+                , HA.type_ "button"
+                , HE.onClick RestartGame
+                ]
+                [ Html.text "RESTART" ]
+            ]
+        , Html.div [ HA.class "action-controls" ]
+            [ touchButton "ctrl-btn jump-btn" model.keys.jump BtnJump jumpLabel ]
+        ]
+
+
+touchButton : String -> Bool -> ControlButton -> String -> Html Msg
+touchButton baseClass isActive btn label =
+    let
+        cls =
+            if isActive then
+                baseClass ++ " active"
+
+            else
+                baseClass
+
+        prevent msg =
+            Decode.succeed ( msg, True )
+    in
+    Html.button
+        [ HA.class cls
+        , HA.type_ "button"
+        , HE.preventDefaultOn "touchstart" (prevent (ControlDown btn))
+        , HE.preventDefaultOn "touchend" (prevent (ControlUp btn))
+        , HE.preventDefaultOn "touchcancel" (prevent (ControlUp btn))
+        , HE.onMouseDown (ControlDown btn)
+        , HE.onMouseUp (ControlUp btn)
+        , HE.onMouseLeave (ControlUp btn)
+        ]
+        [ Html.text label ]
 
 
 
