@@ -142,18 +142,41 @@
       touch-action: none;
     }
     .dpad {
+      position: relative;
       display: grid;
       grid-template-columns: repeat(3, 52px);
       grid-template-rows: repeat(3, 52px);
       gap: 5px;
       padding: 6px;
-      border-radius: 22px;
-      background: rgba(15, 23, 42, 0.72);
-      border: 1.5px solid #1e293b;
-      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.55);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.85) 0%, rgba(9, 14, 29, 0.95) 100%);
+      border: 2px solid #24324a;
+      box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.7), 0 0 14px rgba(45, 212, 191, 0.12);
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
+    }
+    .dpad-nub {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 44px;
+      height: 44px;
+      margin-left: -22px;
+      margin-top: -22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #334155 0%, #0f172a 75%);
+      border: 2px solid #475569;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.65);
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.78;
+    }
+    .dpad-nub.active {
+      background: radial-gradient(circle at 35% 30%, #5eead4 0%, #0d9488 65%, #115e59 100%);
+      border-color: #ccfbf1;
+      box-shadow: 0 0 18px rgba(45, 212, 191, 0.65);
+      opacity: 0.95;
     }
     .dpad-center {
       border-radius: 50%;
@@ -411,14 +434,14 @@
     (function () {
       var activeTouchId = null;
       var mouseDown = false;
-      var lastState = { left: false, right: false, up: false, down: false };
+      var lastState = { axisX: 0, axisY: 0 };
 
       function sendDpad(state) {
         if (
-          state.left !== lastState.left ||
-          state.right !== lastState.right ||
-          state.up !== lastState.up ||
-          state.down !== lastState.down
+          Math.abs(state.axisX - lastState.axisX) > 0.015 ||
+          Math.abs(state.axisY - lastState.axisY) > 0.015 ||
+          (state.axisX === 0 && lastState.axisX !== 0) ||
+          (state.axisY === 0 && lastState.axisY !== 0)
         ) {
           lastState = state;
           if (app.ports && app.ports.onDpad) {
@@ -427,28 +450,37 @@
         }
       }
 
+      function curveAxis(v, deadzone) {
+        var mag = Math.abs(v);
+        if (mag <= deadzone) return 0;
+        var norm = Math.min(1, (mag - deadzone) / (1 - deadzone));
+        // Smooth gradual ramp: fine control near center, full speed near edge
+        var curved = Math.pow(norm, 1.35);
+        return v < 0 ? -curved : curved;
+      }
+
       function computeDpad(padEl, clientX, clientY) {
         var rect = padEl.getBoundingClientRect();
         var cx = rect.left + rect.width / 2;
         var cy = rect.top + rect.height / 2;
-        var nx = (clientX - cx) / (rect.width / 2);
-        var ny = (clientY - cy) / (rect.height / 2);
+        var radius = rect.width * 0.44;
+        var nx = (clientX - cx) / radius;
+        var ny = (clientY - cy) / radius;
         var dist = Math.hypot(nx, ny);
-        if (dist < 0.16) {
-          return { left: false, right: false, up: false, down: false };
+        if (dist > 1) {
+          nx /= dist;
+          ny /= dist;
         }
         return {
-          left: nx < -0.26,
-          right: nx > 0.26,
-          up: ny < -0.26,
-          down: ny > 0.26
+          axisX: curveAxis(nx, 0.12),
+          axisY: curveAxis(ny, 0.14)
         };
       }
 
       function releaseDpad() {
         activeTouchId = null;
         mouseDown = false;
-        sendDpad({ left: false, right: false, up: false, down: false });
+        sendDpad({ axisX: 0, axisY: 0 });
       }
 
       function getPad() {

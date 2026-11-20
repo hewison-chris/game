@@ -21,6 +21,8 @@ type alias Keys =
     , up : Bool
     , down : Bool
     , jump : Bool
+    , analogX : Float
+    , analogY : Float
     }
 
 
@@ -172,10 +174,8 @@ type alias Model =
 
 
 type alias DpadState =
-    { left : Bool
-    , right : Bool
-    , up : Bool
-    , down : Bool
+    { axisX : Float
+    , axisY : Float
     }
 
 

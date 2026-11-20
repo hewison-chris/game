@@ -46,6 +46,8 @@ emptyKeys =
     , up = False
     , down = False
     , jump = False
+    , analogX = 0
+    , analogY = 0
     }
 
 
@@ -120,10 +122,8 @@ update msg model =
 
                 newKeys =
                     { keys
-                        | left = dpad.left
-                        , right = dpad.right
-                        , up = dpad.up
-                        , down = dpad.down
+                        | analogX = clamp -1 1 dpad.axisX
+                        , analogY = clamp -1 1 dpad.axisY
                     }
             in
             ( { model | keys = newKeys }, Cmd.none )
@@ -758,6 +758,12 @@ stepPlayer dt keys lifts platforms ladders player =
         canGrabLadder =
             pTimed.ladderCooldown <= 0 && pTimed.vy >= 0 && not keys.jump
 
+        wantsUp =
+            keys.up || keys.analogY < -0.38
+
+        wantsDown =
+            keys.down || keys.analogY > 0.38
+
         wantsLadder =
             if wantsJump then
                 False
@@ -768,10 +774,10 @@ stepPlayer dt keys lifts platforms ladders player =
                         if pTimed.onLadder then
                             True
 
-                        else if canGrabLadder && keys.up && pBottom > lad.topY + 4 then
+                        else if canGrabLadder && wantsUp && pBottom > lad.topY + 4 then
                             True
 
-                        else if canGrabLadder && keys.down && pBottom <= lad.bottomY - 2 then
+                        else if canGrabLadder && wantsDown && pBottom <= lad.bottomY - 2 then
                             True
 
                         else
@@ -823,8 +829,8 @@ stepOnLadder dt keys lad player =
             targetX =
                 ladCenterX - player.width / 2
 
-            -- Gently snap toward ladder center, or allow slight horizontal exit
-            horizInput =
+            -- Gently snap toward ladder center, or allow smooth horizontal exit
+            kbHoriz =
                 (if keys.left then
                     -1
 
@@ -838,14 +844,21 @@ stepOnLadder dt keys lad player =
                         0
                       )
 
+            horizInput =
+                if kbHoriz /= 0 then
+                    toFloat kbHoriz
+
+                else
+                    keys.analogX
+
             newX =
-                if horizInput /= 0 then
-                    clamp 0 (arenaWidth - player.width) (player.x + toFloat horizInput * 110 * dt)
+                if abs horizInput > 0.18 then
+                    clamp 0 (arenaWidth - player.width) (player.x + horizInput * 110 * dt)
 
                 else
                     player.x + (targetX - player.x) * min 1 (dt * 12)
 
-            vertInput =
+            kbVert =
                 (if keys.up then
                     -1
 
@@ -859,8 +872,18 @@ stepOnLadder dt keys lad player =
                         0
                       )
 
+            vertInput =
+                if kbVert /= 0 then
+                    toFloat kbVert
+
+                else if abs keys.analogY > 0.2 then
+                    keys.analogY
+
+                else
+                    0
+
             newY =
-                player.y + toFloat vertInput * climbSpeed * dt
+                player.y + vertInput * climbSpeed * dt
 
             clampedY =
                 if newY + player.height > lad.bottomY then
@@ -880,10 +903,10 @@ stepOnLadder dt keys lad player =
                     clampedY
 
             newFacing =
-                if horizInput < 0 then
+                if horizInput < -0.15 then
                     Left
 
-                else if horizInput > 0 then
+                else if horizInput > 0.15 then
                     Right
 
                 else
@@ -899,8 +922,8 @@ stepOnLadder dt keys lad player =
             , onLiftId = Nothing
             , facing = newFacing
             , walkFrame =
-                if vertInput /= 0 then
-                    player.walkFrame + dt * 10
+                if abs vertInput > 0.1 then
+                    player.walkFrame + dt * 10 * abs vertInput
 
                 else
                     player.walkFrame
@@ -910,7 +933,7 @@ stepOnLadder dt keys lad player =
 stepFreeMove : Float -> Keys -> List Lift -> List Platform -> Player -> Player
 stepFreeMove dt keys lifts platforms player =
     let
-        horiz =
+        kbHoriz =
             (if keys.left then
                 -1
 
@@ -924,14 +947,21 @@ stepFreeMove dt keys lifts platforms player =
                     0
                   )
 
+        horiz =
+            if kbHoriz /= 0 then
+                toFloat kbHoriz
+
+            else
+                keys.analogX
+
         newVx =
-            toFloat horiz * moveSpeed
+            horiz * moveSpeed
 
         newFacing =
-            if horiz < 0 then
+            if horiz < -0.08 then
                 Left
 
-            else if horiz > 0 then
+            else if horiz > 0.08 then
                 Right
 
             else
@@ -1001,8 +1031,8 @@ stepFreeMove dt keys lifts platforms player =
                             { y = rawNewY, vy = jumpedVy, grounded = False, liftId = Nothing }
 
         newWalkFrame =
-            if landing.grounded && horiz /= 0 then
-                player.walkFrame + dt * 12
+            if landing.grounded && abs horiz > 0.08 then
+                player.walkFrame + dt * 12 * max 0.35 (abs horiz)
 
             else
                 player.walkFrame

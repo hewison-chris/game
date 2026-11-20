@@ -63,19 +63,50 @@ viewTouchControls model =
 
                 _ ->
                     "PAUSE"
+        isLeft =
+            model.keys.left || model.keys.analogX < -0.18
+
+        isRight =
+            model.keys.right || model.keys.analogX > 0.18
+
+        isUp =
+            model.keys.up || model.keys.analogY < -0.32
+
+        isDown =
+            model.keys.down || model.keys.analogY > 0.32
+
+        nubX =
+            String.fromFloat (model.keys.analogX * 44) ++ "px"
+
+        nubY =
+            String.fromFloat (model.keys.analogY * 44) ++ "px"
+
+        nubActive =
+            abs model.keys.analogX > 0.05 || abs model.keys.analogY > 0.05
     in
     Html.div [ HA.class "touch-controls" ]
         [ Html.div [ HA.class "thumb-row" ]
             [ Html.div [ HA.id "dpad-pad", HA.class "dpad" ]
-                [ dpadCorner (model.keys.up && model.keys.left)
-                , dpadIndicator "ctrl-btn dpad-up" model.keys.up "▲"
-                , dpadCorner (model.keys.up && model.keys.right)
-                , dpadIndicator "ctrl-btn dpad-left" model.keys.left "◀"
+                [ dpadCorner (isUp && isLeft)
+                , dpadIndicator "ctrl-btn dpad-up" isUp "▲"
+                , dpadCorner (isUp && isRight)
+                , dpadIndicator "ctrl-btn dpad-left" isLeft "◀"
                 , Html.div [ HA.class "dpad-center" ] []
-                , dpadIndicator "ctrl-btn dpad-right" model.keys.right "▶"
-                , dpadCorner (model.keys.down && model.keys.left)
-                , dpadIndicator "ctrl-btn dpad-down" model.keys.down "▼"
-                , dpadCorner (model.keys.down && model.keys.right)
+                , dpadIndicator "ctrl-btn dpad-right" isRight "▶"
+                , dpadCorner (isDown && isLeft)
+                , dpadIndicator "ctrl-btn dpad-down" isDown "▼"
+                , dpadCorner (isDown && isRight)
+                , Html.div
+                    [ HA.class
+                        (if nubActive then
+                            "dpad-nub active"
+
+                         else
+                            "dpad-nub"
+                        )
+                    , HA.style "transform" ("translate(" ++ nubX ++ ", " ++ nubY ++ ")")
+                    ]
+                    []
                 ]
             , Html.div [ HA.class "action-controls" ]
                 [ touchButton "ctrl-btn jump-btn" model.keys.jump BtnJump jumpLabel ]
