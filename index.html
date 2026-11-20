@@ -219,65 +219,88 @@
       box-shadow: 0 2px 0 #78350f, 0 0 28px rgba(250, 204, 21, 0.65);
     }
 
-    @media (hover: none) and (pointer: coarse), (max-width: 900px) {
-      body {
-        padding: 6px;
-        justify-content: flex-start;
-      }
-      .arcade-cabinet {
-        padding: 8px 8px 10px;
-        border-radius: 12px;
-        gap: 6px;
-        max-height: 100dvh;
-      }
-      .cabinet-header {
-        font-size: 10px;
-        letter-spacing: 1px;
-      }
-      .cabinet-footer {
-        display: none;
-      }
-      svg {
-        max-height: 56dvh;
-      }
-      .touch-controls {
-        display: flex;
-      }
+    .mode-toggle {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      color: #2dd4bf;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1.5px solid #2dd4bf;
+      border-radius: 999px;
+      padding: 4px 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      touch-action: manipulation;
+      white-space: nowrap;
+    }
+    .mode-toggle:active {
+      background: #0f766e;
+      color: #ffffff;
+    }
+
+    body.mobile-mode {
+      padding: 6px;
+      justify-content: flex-start;
+    }
+    body.mobile-mode .arcade-cabinet {
+      padding: 8px 8px 10px;
+      border-radius: 12px;
+      gap: 6px;
+      max-height: 100dvh;
+    }
+    body.mobile-mode .cabinet-header {
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+    body.mobile-mode .cabinet-footer {
+      display: none;
+    }
+    body.mobile-mode svg {
+      max-height: 56dvh;
+    }
+    body.mobile-mode .touch-controls {
+      display: flex;
     }
 
     @media (max-height: 500px) and (orientation: landscape) {
-      .cabinet-header {
+      body.mobile-mode .cabinet-leds,
+      body.mobile-mode .cabinet-title {
         display: none;
       }
-      .game-shell {
+      body.mobile-mode .cabinet-header {
+        justify-content: flex-end;
+        padding: 0;
+      }
+      body.mobile-mode .game-shell {
         flex-direction: row;
         align-items: center;
         justify-content: center;
         gap: 8px;
       }
-      svg {
-        max-height: 92dvh;
+      body.mobile-mode svg {
+        max-height: 84dvh;
         width: auto;
         max-width: 68vw;
       }
-      .touch-controls {
+      body.mobile-mode .touch-controls {
         width: auto;
         flex-direction: column;
         justify-content: space-between;
-        height: 90dvh;
+        height: 82dvh;
         padding: 4px;
       }
-      .dpad {
+      body.mobile-mode .dpad {
         grid-template-columns: repeat(3, 44px);
         grid-template-rows: repeat(3, 44px);
         gap: 4px;
       }
-      .jump-btn {
+      body.mobile-mode .jump-btn {
         width: 68px;
         height: 68px;
         font-size: 13px;
       }
-      .meta-controls {
+      body.mobile-mode .meta-controls {
         flex-direction: row;
       }
     }
@@ -292,7 +315,7 @@
         <span class="led gold"></span>
       </div>
       <div class="cabinet-title">CHUCKIE LIFT // ARCADE EDITION</div>
-      <div>ELM 0.19.3</div>
+      <button id="mode-toggle" class="mode-toggle" type="button">MOBILE CONTROLS</button>
     </div>
     <div id="elm-root"></div>
     <div class="cabinet-footer">
@@ -304,6 +327,41 @@
   </div>
   <script src="main.js"></script>
   <script>
+    (function () {
+      var STORAGE_KEY = "chuckie-lift-mobile-mode";
+      var btn = document.getElementById("mode-toggle");
+
+      function detectMobile() {
+        return (
+          window.matchMedia("(pointer: coarse)").matches ||
+          "ontouchstart" in window ||
+          navigator.maxTouchPoints > 0 ||
+          window.innerWidth <= 900
+        );
+      }
+
+      function applyMode(isMobile) {
+        document.body.classList.toggle("mobile-mode", isMobile);
+        btn.textContent = isMobile ? "DESKTOP MODE" : "MOBILE MODE";
+      }
+
+      var saved = null;
+      try {
+        saved = localStorage.getItem(STORAGE_KEY);
+      } catch (e) {}
+
+      var isMobile = saved !== null ? saved === "1" : detectMobile();
+      applyMode(isMobile);
+
+      btn.addEventListener("click", function () {
+        isMobile = !document.body.classList.contains("mobile-mode");
+        applyMode(isMobile);
+        try {
+          localStorage.setItem(STORAGE_KEY, isMobile ? "1" : "0");
+        } catch (e) {}
+      });
+    })();
+
     window.addEventListener("keydown", function (e) {
       if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
         e.preventDefault();
