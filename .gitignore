@@ -1,0 +1,9 @@
+# Elm build artifacts
+elm-stuff/
+main.js
+
+# Node / npx cache if created locally
+node_modules/
+
+# macOS
+.DS_Store
