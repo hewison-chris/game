@@ -2,6 +2,14 @@
 
 A retro *Chuckie Egg*–inspired 2D platformer built in **Elm** (`0.19.3`) using pure SVG rendering.
 
+## Screenshots
+
+### Title Screen
+![Chuckie Lift Title Screen](chuckie1.png)
+
+### Gameplay — Stage 1: The Henhouse Shafts
+![Chuckie Lift Gameplay](chuckie2.png)
+
 ## Gameplay
 
 - Collect all golden **eggs** (`+100` pts) and bonus **seeds** (`+50` pts) on each level before the bonus timer runs out.
